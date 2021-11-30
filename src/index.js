@@ -1,6 +1,5 @@
-
-import './css/style.css'
-import { getImages } from "./api";
+import "./css/style.css";
+import { getImages } from "./api.js";
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import "notiflix/dist/notiflix-3.2.2.min.css";
 import SimpleLightbox from 'simplelightbox';
@@ -13,90 +12,103 @@ const btnLoad = document.querySelector(".load-more");
 btnLoad.classList.add("hidden");
 let page = 1;
 const per_page = 40;
-let inputValue = "";
-// let gallery = {};
-
-
+let inputName = "";
+let gallery = {};
 
 form.addEventListener("submit", onSubmitForm);
 btnLoad.addEventListener("click", onBtnLoadClick)
 
-
-
 async function onSubmitForm(event) {
-  event.preventDefault()
-   
-  inputValue = event.target.elements[0].value
-  console.log(inputValue)
-  try {
-    const data = await getImages(inputValue.trim(), page, per_page)
-    console.log(data)
-    if (inputValue === '') {
-      Notify.failure('Enter your serch query, please :)');
-      galleryItem.innerHTML = ''
-      btnLoad.classList.add("hidden")
-    }
-    else if (data.totalHits < 1) {
-      Notify.warning("Sorry, there are no images matching your search query. Please try again.", { timeout: 3000 });
-      btnLoad.classList.add("hidden")
-    }
-    else {
-      Notify.success(`Hooray! We found ${inputValue} images`, { timeout: 2500 })
-      setTimeout(() => {
-        btnLoad.classList.remove("hidden")
-      }, 2000);
-    
-    }
-  } catch (error) {
-    console.log(error.message)
-  }
-  
-  form.reset()
-  
-}
-
-export function markupImagesCard(images) {
-   console.log(images)
-    const markup = images.hits.map(
-        ({ webformatURL, largeImageURL, tags, likes, views, comments, downloads }) => 
-          
-            `<div class="photo-card">
-            <a class="gallery-item" href="${largeImageURL}">
-              <img class="photo-img" src="${webformatURL}" alt="${tags}" loading="lazy" height="250"/>
-               <div class="info">
-                  <p class="info-item">
-                    <b class="info-text">Likes</b>${likes}
-                  </p>
-                  <p class="info-item">
-                    <b class="info-text">Views</b>${views}
-                  </p>
-                  <p class="info-item">
-                    <b class="info-text">Comments</b>${comments}
-                  </p>
-                  <p class="info-item">
-                    <b class="info-text">Downloads</b>${downloads}
-                  </p>
-              </div>
-              </a>
-             </div>`
-                      
-    ).join('');
- 
-  
-        
-  
-galleryItem.insertAdjacentHTML('beforeend', markup);
-    const simpleLightbox = new SimpleLightbox('.gallery a', { captionsData: "alt", captionDelay: 250 });
-}
-
- async function onBtnLoadClick() {
-   const data = await getImages(inputValue.trim(), page, per_page)
-   page += 1
-   if ((page * per_page) >= data.total) {
+    event.preventDefault();
+    galleryItem.innerHTML = "";
+    page = 1;
     btnLoad.classList.add("hidden");
-    Notify.info("We're sorry, but you've reached the end of search results.", { timeout: 4000 },);
-   }
+    inputName = event.target.searchQuery.value;
+
+  if (inputName.trim() === "") {
+      return  Notify.failure(
+      'Sorry, there are no images matching your search query. Please try again.',
+    );
+    };
   
-  
+    try {
+      const data = await getImages(inputName.trim(), page, per_page);
+      
+        if (data.hits.length===0) {
+          Notify.failure("Sorry, there are no images matching your search query. Please try again.", { timeout: 3000 });
+        } else {
+          Notify.success(`Hooray! We found ${data.totalHits} images`, { timeout: 2500 });
+          markImageCard(data.hits);
+          gallery = new SimpleLightbox('.gallery a', { captionsData: "alt", captionDelay: 250 });
+         
+          (page * per_page) <= data.totalHits && btnLoad.classList.remove("hidden");
+          
+           page += 1;
+        }
+      
+    }
+    catch (error) {
+      
+      console.log(error.message);
+  }
+  form.reset()
+};
+
+async function onBtnLoadClick() {
+  try {
+    const data = await getImages(inputName.trim(), page, per_page);
+    
+      if ((page * per_page) >= data.totalHits) {
+        btnLoad.classList.add("hidden");
+        Notify.info("We're sorry, but you've reached the end of search results.", { timeout: 4000 },);
+       }
+      
+    markImageCard(data.hits);
+    gallery.refresh();
+    page += 1;
+
+      const {height} = document.querySelector('.gallery').firstElementChild.getBoundingClientRect();
+      window.scrollBy({
+        top: height * 2,
+        behavior: 'smooth',
+      });
+    }
+    catch(error) {
+      console.log(error.message)
+    }
 }
+
+
+function markImageCard(images) {
+  const markUp = images.map(image => {
+    const { webformatURL, largeImageURL, tags, likes, views, comments, downloads } = image;
+    return `<a class="gallery__item" href="${largeImageURL}">
+    <div class="photo-card">
+      <div class="wrapper-img">
+        <img class="photo-img" src="${webformatURL}" alt="${tags}" loading="lazy" height="250"/>
+      </div>  
+      <div class="info">
+        <p class="info-item">
+          <b>Likes </b>${likes}
+        </p>
+        <p class="info-item">
+          <b>Views </b>${views}
+        </p>
+        <p class="info-item">
+          <b>Comments </b>${comments}
+        </p>
+        <p class="info-item">
+          <b>Downloads </b>${downloads}
+        </p>
+      </div>
+    </div>
+  </a>`;
+  }).join("");
+  galleryItem.insertAdjacentHTML("beforeend", markUp)
+};
+
+
+
+
+
 
